@@ -1,0 +1,294 @@
+import sys
+from PyQt5 import QtGui
+from PyQt5.QtWidgets import  QVBoxLayout,QHBoxLayout,QGridLayout,QApplication,QWidget, QLabel, QMainWindow, QAction, qApp, QSizePolicy
+from PyQt5.QtGui import QIcon, QPixmap, QImage
+import numpy as np
+from PyQt5.QtWidgets import QMessageBox, QTabWidget, QMainWindow
+import cv2
+from matplotlib.figure import Figure
+
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as Canvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+import matplotlib.pyplot as plt
+
+
+
+img1 = cv2.imread('color2.png')#input
+img2 = cv2.imread('color1.png')#target
+
+class window(QMainWindow):
+
+
+
+    def __init__(self):
+        super().__init__()
+        self.title = 'Histogram Equalization'
+        self.setGeometry(50,50,1400,900)
+        self.inputLoaded =0
+        self.targetLoaded =0
+        self.initUI()
+
+
+    def initUI(self):
+
+        self.statusBar()
+        menubar = self.menuBar()
+        menubar.setNativeMenuBar(False)
+        fileMenu = menubar.addMenu('&File')
+
+
+
+
+
+        exitAct = QAction('&Exit',self)
+        exitAct.triggered.connect(qApp.quit)
+
+        openAct = QAction('&Open Input',self)
+        openAct.triggered.connect(self.openinput)
+
+        openAct2 = QAction('&Open Target',self)
+        openAct2.triggered.connect(self.opentarget)
+
+        fileMenu.addAction(exitAct)
+        fileMenu.addAction(openAct)
+        fileMenu.addAction(openAct2)
+
+        tb = self.addToolBar("Equalize")
+        eq = QAction('Equalize Histogram',self)
+        eq.triggered.connect(self.histogramButtonClicked)
+        tb.addAction(eq)
+        #eq.triggered.connect(self.equalize)
+
+        #self.show
+
+
+
+       # hlay.addWidget(eq)
+       # hlay.addItem(QSpacerItem(1000, 10, QSizePolicy.Expanding))
+
+
+
+
+
+
+    def openinput(self):
+
+        self.formwidget = WidgetPlot(self)
+        self.setCentralWidget(self.formwidget)
+        label = QLabel(self)
+        label.show()
+        pixmap = QPixmap('color2.png')
+        label.setPixmap(pixmap)
+        label.setGeometry(100,140,300,400)
+
+
+        '''self.resize(100,100)
+        self.show()
+        self.setGeometry(50, 50, 1400, 900)
+        self.setWindowTitle('Histogram Equalization')
+
+        self.show()'''
+        self.inputLoaded = 1
+
+
+    def opentarget(self):
+
+        if not self.inputLoaded:
+            buttonReply = QMessageBox.question(self, 'Warning', "First load input.",
+                                               QMessageBox.Ok)
+            print(int(buttonReply))
+        else:
+            self.openinput()
+            label = QLabel(self)
+            label.show()
+            pixmap = QPixmap('color1.png')
+            label.setPixmap(pixmap)
+            label.setGeometry(600,140,300,400)
+
+            self.show()
+            self.targetLoaded = 1
+
+
+
+
+    def histogramButtonClicked(self):
+        if not self.inputLoaded and not self.targetLoaded:
+            buttonReply = QMessageBox.question(self, 'Warning', "First load input and target images",
+                                               QMessageBox.Ok)
+            print(int(buttonReply))
+        if not self.inputLoaded:
+            buttonReply = QMessageBox.question(self, 'Warning', "Load input image",
+                                               QMessageBox.Ok)
+
+            self.show()
+            # Error: "Load input image" in MessageBox
+            return
+        elif not self.targetLoaded:
+            buttonReply = QMessageBox.question(self, 'Warning', "Load target image",
+                                               QMessageBox.Ok)
+
+            self.show()
+            # Error: "Load target image" in MessageBox
+
+
+        else:
+            self.equalize()
+
+            return
+
+
+    def equalize(self,input,target):
+        greenchannel = input[:, :, 2]
+        bluechannel = input[:, :, 0]
+        redchannel = input[:, :, 1]
+
+        hinputgreen = self.calcHistogram(input)[:, :, 2]
+        hinputblue = self.calcHistogram(input)[:, :, 0]
+        hinputred = self.calcHistogram(input)[:, :, 1]
+
+        htargetgreen = self.calcHistogram(target)[:, :, 2]
+        htargetblue = self.calcHistogram(target)[:, :, 0]
+        htargetred = self.calcHistogram(target)[:, :, 1]
+
+        cdf1g = hinputgreen.cumsum()
+        cdf1b = hinputblue.cumsum()
+        cdf1r = hinputred.cumsum()
+
+        cdf2g = htargetgreen.cumsum()
+        cdf2b = htargetblue.cumsum()
+        cdf2r = htargetred.cumsum()
+
+        cdf1g = cdf1g / sum(hinputgreen)
+        cdf1b = cdf1b / sum(hinputblue)
+        cdf1r = cdf1r / sum(hinputred)
+
+        cdf2g = cdf2g / sum(htargetgreen)
+        cdf2b = cdf2b / sum(htargetblue)
+        cdf2r = cdf2r / sum(htargetred)
+
+        lutgreen = np.zeros((256, 1))
+        lutblue = np.zeros((256, 1))
+        lutred = np.zeros((256, 1))
+
+        gj = 0
+
+        for gi in range(256):
+            while gj < 255 and cdf1g[gi] > cdf2g[gj]:
+                gj = gj + 1
+            #   print(gi,gj,cdf1[gi],cdf2[gj],"\n")
+            lutgreen[gi] = gj
+            # print(gi,lut[gi],"\n")
+            gj = 0
+
+        for gi in range(256):
+            while gj < 255 and cdf1b[gi] > cdf2b[gj]:
+                gj = gj + 1
+            #   print(gi,gj,cdf1[gi],cdf2[gj],"\n")
+            lutblue[gi] = gj
+            # print(gi,lut[gi],"\n")
+            gj = 0
+
+
+        for gi in range(256):
+            while gj < 255 and cdf1r[gi] > cdf2r[gj]:
+                gj = gj + 1
+            #   print(gi,gj,cdf1[gi],cdf2[gj],"\n")
+            lutred[gi] = gj
+            # print(gi,lut[gi],"\n")
+            gj = 0
+
+
+        for r in range(R):
+            for c in range(C):
+                temp = greenchannel[r][c]
+                greenchannel[r][c] = lutgreen[temp]
+
+        for r in range(R):
+            for c in range(C):
+                temp = bluechannel[r][c]
+                bluechannel[r][c] = lutblue[temp]
+
+        for r in range(R):
+            for c in range(C):
+                temp = redchannel[r][c]
+                redchannel[r][c] = lutred[temp]
+
+        finalimage = np.dstack((greenchannel, redchannel, bluechannel))
+        print("fghffsdcfr")
+        h, w,c = finalimage.shape
+        print(h,w,c)
+        bpl = 3*w
+        qImg = QImage(finalimage.data,w,h,bpl,QImage.Format_RGB888)
+        qp = QPixmap.fromImage(qImg)
+
+        label = QLabel(self)
+        label.show()
+        label.setPixmap(qp)
+        label.setGeometry(600, 140, 300, 400)
+
+    def calcHistogram(self,I):
+        R, C = I.shape
+
+        hist = np.zeros((256, 1), dtype=np.int32)
+        for g in range(0, 256):
+            hist[g, 0] = np.sum(np.sum(I == g, 0), 0)
+
+        return hist
+
+
+
+
+
+
+class WidgetPlot(QWidget):
+    def __init__(self, *args, **kwargs):
+        QWidget.__init__(self, *args, **kwargs)
+        self.setLayout(QGridLayout())
+        self.canvas = PlotCanvas(self,width=5, height=4)
+
+        self.layout().addWidget(self.canvas)
+
+
+
+
+class PlotCanvas(Canvas):
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+
+        # Init Canvas
+        fig = Figure(figsize=(2, 2), dpi=dpi)
+        Canvas.__init__(self,fig)
+        self.setParent(parent)
+        #self.ax = self.fig.add_subplot(111)
+        Canvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        Canvas.updateGeometry(self)
+
+        img = img1
+
+        self.plotHistogram(0,img)
+        self.plotHistogram(1,img)
+        self.plotHistogram(2,img)
+
+
+
+    def plotHistogram(self,channel,I):
+        if channel==0:
+            ax = self.figure.add_subplot(221)
+            self.figure.subplots_adjust(0.06,0.7,0.35,0.85)
+        elif channel==1:
+            ax = self.figure.add_subplot(222)
+            self.figure.subplots_adjust(0.06,0.45,0.35,0.60)
+        elif channel==2:
+            ax = self.figure.add_subplot(223)
+            self.figure.subplots_adjust(0.06,0.05,0.35,0.30)
+
+       # ax.hold(False)
+        histogram = window.calcHistogram(self,I[:,:,channel])
+        ax.plot(histogram)
+        self.draw()
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    win = window()
+    win.show()
+    sys.exit(app.exec_())

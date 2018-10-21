@@ -1,0 +1,10 @@
+def histo(I):
+    R,C,B = I.shape
+#    green = I[:,:,0]
+ #   red = I[:,:,2]
+  #  blue = I[:,:,1]
+    hist = np.zeros((256,1,B),dtype=np.int32)
+    for g in range(0,256):
+            hist[g,0,:] =np.sum(np.sum(I==g,0),0)
+
+    return hist

@@ -1,0 +1,129 @@
+import cv2
+#from matplotlib import pyplot as plt; plt.rcdefaults()
+import numpy as np
+import matplotlib.pyplot as plt
+
+def histo(I):
+    R,C,B = I.shape
+#    green = I[:,:,0]
+ #   red = I[:,:,2]
+  #  blue = I[:,:,1]
+    hist = np.zeros((256,1,B),dtype=np.int32)
+    for g in range(0,256):
+            hist[g,0,:] =np.sum(np.sum(I==g,0),0)
+
+    return hist
+
+img1 = cv2.imread('color2.png')#input
+img2 = cv2.imread('color1.png')#target
+
+
+R,C,B =img1.shape
+
+greenchannel=img1[:,:,2]
+bluechannel=img1[:,:,0]
+redchannel=img1[:,:,1]
+
+hinputgreen = histo(img1)[:,:,2]
+hinputblue = histo(img1)[:,:,0]
+hinputred = histo(img1)[:,:,1]
+
+htargetgreen = histo(img2)[:,:,2]
+htargetblue = histo(img2)[:,:,0]
+htargetred = histo(img2)[:,:,1]
+
+
+cdf1g =hinputgreen .cumsum()
+cdf1b =hinputblue .cumsum()
+cdf1r =hinputred .cumsum()
+
+cdf2g =htargetgreen .cumsum()
+cdf2b =htargetblue .cumsum()
+cdf2r =htargetred .cumsum()
+
+cdf1g = cdf1g/sum(hinputgreen)
+cdf1b = cdf1b/sum(hinputblue)
+cdf1r = cdf1r/sum(hinputred)
+
+cdf2g = cdf2g/sum(htargetgreen)
+cdf2b = cdf2b/sum(htargetblue)
+cdf2r = cdf2r/sum(htargetred)
+
+
+
+plt.plot(histo(img1)[:,:,2],color='g')
+plt.plot(histo(img1)[:,:,0],color='b')
+plt.plot(histo(img1)[:,:,1],color='r')
+plt.show()
+
+plt.plot(histo(img2)[:,:,2],color='g')
+plt.plot(histo(img2)[:,:,0],color='b')
+plt.plot(histo(img2)[:,:,1],color='r')
+
+
+plt.show()
+
+lutgreen = np.zeros((256,1))
+lutblue = np.zeros((256,1))
+lutred = np.zeros((256,1))
+
+gj=0
+
+for gi in range(256):
+    while gj<255 and cdf1g[gi]>cdf2g[gj]:
+        gj = gj+1
+     #   print(gi,gj,cdf1[gi],cdf2[gj],"\n")
+    lutgreen[gi] = gj
+    #print(gi,lut[gi],"\n")
+    gj=0
+
+for gi in range(256):
+    while gj<255 and cdf1b[gi]>cdf2b[gj]:
+        gj = gj+1
+     #   print(gi,gj,cdf1[gi],cdf2[gj],"\n")
+    lutblue[gi] = gj
+    #print(gi,lut[gi],"\n")
+    gj=0
+
+for gi in range(256):
+    while gj<255 and cdf1r[gi]>cdf2r[gj]:
+        gj = gj+1
+     #   print(gi,gj,cdf1[gi],cdf2[gj],"\n")
+    lutred[gi] = gj
+    #print(gi,lut[gi],"\n")
+    gj=0
+
+
+
+for r in range(R):
+    for c in range(C):
+            temp = greenchannel[r][c]
+            greenchannel[r][c] = lutgreen[temp]
+
+
+for r in range(R):
+    for c in range(C):
+            temp = bluechannel[r][c]
+            bluechannel[r][c] = lutblue[temp]
+
+
+
+for r in range(R):
+    for c in range(C):
+            temp = redchannel[r][c]
+            redchannel[r][c] = lutred[temp]
+
+
+
+
+finalimage=np.dstack((greenchannel,redchannel,bluechannel))
+
+plt.imshow(finalimage,interpolation='nearest')
+plt.show()
+
+
+plt.plot(histo(finalimage)[:,:,2],color='g')
+plt.plot(histo(finalimage)[:,:,0],color='b')
+plt.plot(histo(finalimage)[:,:,1],color='r')
+plt.show()
+
